@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Library Survivors</title>
+  <script type="module" crossorigin src="./assets/index-DbqeCZPS.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BmDxasFl.css">
+</head>
+
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-layer">
+      <!-- Main Menu -->
+      <div id="main-menu" class="menu-overlay">
+        <div class="menu-content">
+          <h1 class="logo-title">Library Survivors</h1>
+          <button id="btn-start" class="menu-btn">Start Game</button>
+          <button id="btn-music" class="menu-btn">Play Menu Music 🎵</button>
+          <button id="btn-guide" class="menu-btn">Guide</button>
+          <button id="btn-settings" class="menu-btn">Settings</button>
+        </div>
+      </div>
+
+      <!-- Guide Menu -->
+      <div id="guide" class="menu-overlay hidden">
+        <div class="menu-content">
+          <h2>Guide</h2>
+          <p>Avoid chaos by maintaining the books. Kids will drop books and you must survive 1 minute 30 seconds.</p>
+          <button id="btn-close-guide" class="menu-btn">Close</button>
+        </div>
+      </div>
+
+      <!-- Settings Menu -->
+      <div id="settings" class="menu-overlay hidden">
+        <div class="menu-content">
+          <h2>Settings</h2>
+          <p>Coming soon...</p>
+          <button id="btn-close-settings" class="menu-btn">Close</button>
+        </div>
+      </div>
+
+      <!-- Pause Menu -->
+      <div id="pause-menu" class="menu-overlay hidden">
+        <div class="menu-content">
+          <h1 class="logo-title" style="font-size: 2.5rem; margin-bottom: 20px;">Paused</h1>
+          <button id="btn-pause-resume" class="menu-btn">Resume</button>
+          <button id="btn-pause-restart" class="menu-btn">Restart Game</button>
+          <button id="btn-pause-quit" class="menu-btn" style="background: rgba(255, 107, 107, 0.2); border: 1px solid #ff6b6b;">Quit to Menu</button>
+        </div>
+      </div>
+
+      <div id="hud" class="hidden">
+        <div class="stat">Chaos: <span id="chaos-meter">0</span>%</div>
+        <div class="stat">Level: <span id="level-display">1</span></div>
+        <div class="stat">XP: <span id="xp-display">0</span>/<span id="xp-max">100</span></div>
+        <div class="stat">Time: <span id="time-display">3:00</span></div>
+        <div class="stat">Kids: <span id="kids-display">0</span>/50</div>
+        <div class="stat">Carry: <span id="carry-display">0</span>/<span id="carry-max">5</span></div>
+        <div class="stat stamina-container">Stamina (Shift): 
+          <div class="stamina-bar-bg"><div id="stamina-fill" class="stamina-bar-fill"></div></div>
+        </div>
+      </div>
+      <div id="overlay" class="hidden">
+        <div class="overlay-content">
+          <h1 id="overlay-title">Game Over</h1>
+          <p id="overlay-desc">The library has fallen to chaos.</p>
+          <div id="score-card" class="hidden card-panel">
+            <h3>Score Card</h3>
+            <div class="score-row"><span>Time Survived:</span> <span id="score-time">0:00</span></div>
+            <div class="score-row"><span>Books Shelved:</span> <span id="score-books">0</span></div>
+            <div class="score-row"><span>Level Reached:</span> <span id="score-level">1</span></div>
+          </div>
+          <div id="upgrade-options" class="hidden">
+            <button id="btn-upgrade-1" class="upgrade-btn">Speed +</button>
+            <button id="btn-upgrade-2" class="upgrade-btn">Carry +</button>
+            <button id="btn-upgrade-3" class="upgrade-btn">Radius +</button>
+          </div>
+          <div class="btn-group">
+            <button id="btn-restart" class="hidden upgrade-btn">Restart Game</button>
+            <button id="btn-quit" class="hidden upgrade-btn" style="background: #34495e;">Quit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Touch Controls -->
+      <div id="joystick-zone" class="joystick-zone hidden">
+        <div id="joystick-base" class="joystick-base">
+          <div id="joystick-stick" class="joystick-stick"></div>
+        </div>
+      </div>
+      <button id="btn-sprint-mobile" class="mobile-sprint-btn hidden">Sprint</button>
+
+    </div>
+  </div>
+</body>
+
+</html>
