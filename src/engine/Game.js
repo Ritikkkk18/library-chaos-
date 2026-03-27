@@ -22,6 +22,41 @@ export class Game {
         this.cameraX = 0;
         this.cameraY = 0;
 
+        // Audio Setup
+        this.bgMusic = new Audio('./game_background.mp3');
+        this.bgMusic.loop = true;
+        this.bgMusic.volume = 0.5; // Adjust volume as needed
+        this.bgMusic.addEventListener('ended', () => {
+            this.bgMusic.currentTime = 0;
+            this.bgMusic.play().catch(e => console.log('Loop play failed:', e));
+        });
+
+        this.menuMusic = new Audio('./menu_background.mp3');
+        this.menuMusic.loop = true;
+        this.menuMusic.volume = 0.5;
+        this.menuMusic.addEventListener('ended', () => {
+            this.menuMusic.currentTime = 0;
+            this.menuMusic.play().catch(e => console.log('Menu audio loop failed', e));
+        });
+
+        // Sound Effects
+        this.pickupSound = new Audio('./pickup_sound.mp3');
+        this.pickupSound.volume = 0.7; // Crisp SFX volume
+
+        // Attempt autoplay for menu music (requires interaction in most browsers)
+        this.menuMusic.play().catch(() => {
+            const startMenuMusic = () => {
+                if (!this.isRunning && !document.getElementById('main-menu').classList.contains('hidden')) {
+                    this.menuMusic.play().catch(e => console.log('Audio play failed:', e));
+                }
+                ['click', 'keydown', 'pointerdown'].forEach(evt => document.removeEventListener(evt, startMenuMusic));
+            };
+            ['click', 'keydown', 'pointerdown'].forEach(evt => document.addEventListener(evt, startMenuMusic, { once: true }));
+        });
+
+        // Generate new floor layout
+        this.createFloorCanvas();
+
         // Entities
         this.player = new Player(this.mapWidth / 2, this.mapHeight / 2);
         this.shelves = [];
@@ -30,7 +65,9 @@ export class Game {
 
         // Listen for chaos events
         document.addEventListener('increaseChaos', () => {
-            this.chaos = Math.min(100, this.chaos + 3); // Reduced from 5 to 3
+            // Difficulty scales with level, base 1.5 + 0.5 per level
+            const chaosAmount = 1.0 + (this.level * 0.5); 
+            this.chaos = Math.min(100, this.chaos + chaosAmount);
         });
 
         // System State
@@ -50,7 +87,20 @@ export class Game {
         document.getElementById('btn-start').addEventListener('click', () => {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('hud').classList.remove('hidden');
+            this.menuMusic.pause();
+            this.menuMusic.currentTime = 0;
             this.start();
+        });
+
+        document.getElementById('btn-music').addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent document click from interfering
+            if (this.menuMusic.paused) {
+                this.menuMusic.play();
+                document.getElementById('btn-music').innerText = 'Pause Menu Music ⏸️';
+            } else {
+                this.menuMusic.pause();
+                document.getElementById('btn-music').innerText = 'Play Menu Music 🎵';
+            }
         });
 
         document.getElementById('btn-guide').addEventListener('click', () => {
@@ -106,6 +156,126 @@ export class Game {
         this.initMap();
     }
 
+    createFloorCanvas() {
+        this.floorCanvas = document.createElement('canvas');
+        this.floorCanvas.width = this.mapWidth;
+        this.floorCanvas.height = this.mapHeight;
+        const ctx = this.floorCanvas.getContext('2d');
+        const w = this.mapWidth;
+        const h = this.mapHeight;
+        const colW = w / 4;
+        const rowH = h / 2;
+
+        // Base wall color
+        ctx.fillStyle = '#4e2f1d';
+        ctx.fillRect(0, 0, w, h);
+
+        const pad = 20; // Wall thickness
+
+        const drawRoom = (col, row, fillFunc) => {
+            const rx = col * colW + pad;
+            const ry = row * rowH + pad;
+            const rw = colW - pad * (col === 3 ? 2 : 1);
+            const rh = rowH - pad * (row === 1 ? 2 : 1);
+            ctx.save();
+            ctx.translate(rx, ry);
+            ctx.beginPath();
+            ctx.rect(0, 0, rw, rh);
+            ctx.clip();
+            fillFunc(ctx, rw, rh);
+            ctx.restore();
+        };
+
+        // R0C0: Green carpet
+        drawRoom(0, 0, (c, rw, rh) => {
+            c.fillStyle = '#6b702b';
+            c.fillRect(0, 0, rw, rh);
+        });
+
+        // R1C0: Horizontal wood planks
+        drawRoom(0, 1, (c, rw, rh) => {
+            c.fillStyle = '#b86d42';
+            c.fillRect(0, 0, rw, rh);
+            c.fillStyle = '#965430';
+            for (let y = 0; y < rh; y += 40) c.fillRect(0, y, rw, 2);
+        });
+
+        // R0C1: Orange top, brown vertical bottom
+        drawRoom(1, 0, (c, rw, rh) => {
+            const split = rh * 0.55;
+            c.fillStyle = '#c45d1a';
+            c.fillRect(0, 0, rw, split);
+            c.fillStyle = '#6b3e34';
+            c.fillRect(0, split, rw, rh - split);
+            c.fillStyle = '#522b22';
+            for (let x = 0; x < rw; x += rw / 4) c.fillRect(x, split, 2, rh - split);
+        });
+
+        // R1C1: Beige Diamond tiles
+        drawRoom(1, 1, (c, rw, rh) => {
+            c.fillStyle = '#debe8e';
+            c.fillRect(0, 0, rw, rh);
+            c.strokeStyle = '#d1b181';
+            c.lineWidth = 2;
+            c.beginPath();
+            for (let i = -rw; i < rw * 2; i += 60) {
+                c.moveTo(i, 0); c.lineTo(i + rh, rh);
+                c.moveTo(i, 0); c.lineTo(i - rh, rh);
+            }
+            c.stroke();
+        });
+
+        // R0C2: Vertical beige stripes
+        drawRoom(2, 0, (c, rw, rh) => {
+            c.fillStyle = '#ebd5ad';
+            c.fillRect(0, 0, rw, rh);
+            c.fillStyle = '#e3cb9f';
+            for (let x = 0; x < rw; x += 60) c.fillRect(x, 0, 30, rh);
+        });
+
+        // R1C2: Light Wood horizontal
+        drawRoom(2, 1, (c, rw, rh) => {
+            c.fillStyle = '#c47e54';
+            c.fillRect(0, 0, rw, rh);
+            c.fillStyle = '#a36743';
+            for (let y = 0; y < rh; y += 40) c.fillRect(0, y, rw, 2);
+        });
+
+        // R0C3: Light tan top, orange grid bottom
+        drawRoom(3, 0, (c, rw, rh) => {
+            const split = rh * 0.35;
+            c.fillStyle = '#eabf90';
+            c.fillRect(0, 0, rw, split);
+            c.fillStyle = '#d16c21';
+            c.fillRect(0, split, rw, rh - split);
+            c.fillStyle = '#bb5715';
+            for (let x = 0; x < rw; x += 30) c.fillRect(x, split, 2, rh - split);
+            for (let y = split; y < rh; y += 30) c.fillRect(0, y, rw, 2);
+        });
+
+        // R1C3: Orange grid with grate
+        drawRoom(3, 1, (c, rw, rh) => {
+            c.fillStyle = '#d16c21';
+            c.fillRect(0, 0, rw, rh);
+            c.fillStyle = '#bb5715';
+            for (let x = 0; x < rw; x += 30) c.fillRect(x, 0, 2, rh);
+            for (let y = 0; y < rh; y += 30) c.fillRect(0, y, rw, 2);
+            // Grate
+            c.fillStyle = '#7c7885'; // Grey base
+            c.fillRect(rw / 2, rh / 2 - 30, 80, 50);
+            c.fillStyle = '#555'; // Dark lines
+            for (let x = rw / 2 + 10; x < rw / 2 + 70; x += 15) {
+                c.fillRect(x, rh / 2 - 20, 5, 30);
+            }
+        });
+
+        // Draw Windows (blue)
+        ctx.fillStyle = '#a3afdb';
+        ctx.fillRect(0, rowH - 200, pad, 400); // left middle
+        ctx.fillRect(colW - 100, h - pad, 200, pad); // bottom room 1
+        ctx.fillRect(colW * 2 - 150, h - pad, 300, pad); // bottom room 2
+    }
+
     resetGame() {
         this.isRunning = false;
         this.isGameOver = false;
@@ -127,6 +297,14 @@ export class Game {
         document.getElementById('btn-restart').classList.add('hidden');
         document.getElementById('btn-quit').classList.add('hidden');
 
+        // Stop game music
+        this.bgMusic.pause();
+        this.bgMusic.currentTime = 0;
+
+        // Restart menu music
+        this.menuMusic.currentTime = 0;
+        this.menuMusic.play().catch(e => console.log('Menu music play failed', e));
+
         this.player = new Player(this.mapWidth / 2, this.mapHeight / 2);
         this.initMap();
         this.updateUI();
@@ -140,8 +318,10 @@ export class Game {
         this.isPaused = !this.isPaused;
         if (this.isPaused) {
             document.getElementById('pause-menu').classList.remove('hidden');
+            this.bgMusic.pause();
         } else {
             document.getElementById('pause-menu').classList.add('hidden');
+            this.bgMusic.play().catch(e => console.log('Audio play failed:', e));
             this.lastTime = performance.now();
         }
     }
@@ -162,12 +342,14 @@ export class Game {
             }
         }
 
-        // Spawn 4 initial kids
-        for (let i = 0; i < 4; i++) {
-            this.kids.push(new Kid(
+        // Spawn 5 initial kids to keep Level 1 manageable
+        for (let i = 0; i < 5; i++) {
+            let initialKid = new Kid(
                 100 + Math.random() * (this.mapWidth - 200),
                 100 + Math.random() * (this.mapHeight - 200)
-            ));
+            );
+            initialKid.speed = 150 + (this.level * 15);
+            this.kids.push(initialKid);
         }
     }
 
@@ -179,6 +361,7 @@ export class Game {
 
     start() {
         this.isRunning = true;
+        this.bgMusic.play().catch(e => console.log('Audio autoplay prevented by browser. Interaction required.', e));
         requestAnimationFrame((time) => this.loop(time));
     }
 
@@ -217,18 +400,23 @@ export class Game {
 
         // Update Kids
         for (const kid of this.kids) {
-            kid.update(dt, this.player, this.mapWidth, this.mapHeight, this.shelves, this.books);
+            kid.update(dt, this.player, this.mapWidth, this.mapHeight, this.shelves, this.books, this.level);
         }
 
         // Kid Spawner
         if (this.kids.length < this.maxKids) {
             this.kidSpawnTimer += dt;
-            if (this.kidSpawnTimer >= 5) {
+            // Spawn rate gets faster as level increases (starts at 10 seconds, drops slowly)
+            const spawnRate = Math.max(2, 12 - this.level);
+            if (this.kidSpawnTimer >= spawnRate) {
                 this.kidSpawnTimer = 0;
-                this.kids.push(new Kid(
+                let newKid = new Kid(
                     100 + Math.random() * (this.mapWidth - 200),
                     100 + Math.random() * (this.mapHeight - 200)
-                ));
+                );
+                // Kids get faster every level
+                newKid.speed = 150 + (this.level * 15);
+                this.kids.push(newKid);
             }
         }
 
@@ -250,6 +438,11 @@ export class Game {
                     this.books.splice(i, 1);
                     // Update Chaos (more rewarding pickup)
                     this.chaos = Math.max(0, this.chaos - 2);
+                    
+                    // Play pickup sound effect (cloned so rapid pickups overlap cleanly)
+                    const sfx = this.pickupSound.cloneNode();
+                    sfx.volume = this.pickupSound.volume;
+                    sfx.play().catch(() => {});
                 }
             }
         }
@@ -317,6 +510,8 @@ export class Game {
         
         this.showScoreCard();
 
+        this.bgMusic.pause(); // Stop music on Win
+
         document.getElementById('btn-restart').classList.remove('hidden');
         document.getElementById('btn-quit').classList.remove('hidden');
     }
@@ -329,6 +524,8 @@ export class Game {
         document.getElementById('overlay-desc').innerText = 'The library has fallen to chaos.';
         
         this.showScoreCard();
+
+        this.bgMusic.pause(); // Stop music on loss
 
         document.getElementById('btn-restart').classList.remove('hidden');
         document.getElementById('btn-quit').classList.remove('hidden');
@@ -351,19 +548,19 @@ export class Game {
         document.getElementById('overlay-desc').innerText = 'Choose an upgrade:';
         document.getElementById('upgrade-options').classList.remove('hidden');
 
-        // Setup upgrade text
-        document.getElementById('btn-upgrade-1').innerText = `Speed + (${this.player.walkSpeed.toFixed(0)})`;
-        document.getElementById('btn-upgrade-2').innerText = `Carry + (${this.player.maxCarryCapacity})`;
-        document.getElementById('btn-upgrade-3').innerText = `Radius + (${this.player.pickupRadius.toFixed(0)})`;
+        // Setup upgrade text to show before -> after
+        document.getElementById('btn-upgrade-1').innerText = `Speed (${this.player.walkSpeed.toFixed(0)} => ${(this.player.walkSpeed + 100).toFixed(0)})`;
+        document.getElementById('btn-upgrade-2').innerText = `Carry (${this.player.maxCarryCapacity} => ${this.player.maxCarryCapacity + 5})`;
+        document.getElementById('btn-upgrade-3').innerText = `Radius (${this.player.pickupRadius.toFixed(0)} => ${(this.player.pickupRadius + 50).toFixed(0)})`;
     }
 
     applyUpgrade(type) {
         if (type === 1) {
-            this.player.walkSpeed += 50;
-            this.player.runSpeed += 50;
+            this.player.walkSpeed += 100;
+            this.player.runSpeed += 150;
         }
-        if (type === 2) this.player.maxCarryCapacity += 2;
-        if (type === 3) this.player.pickupRadius += 20;
+        if (type === 2) this.player.maxCarryCapacity += 5;
+        if (type === 3) this.player.pickupRadius += 50;
 
         this.isPaused = false;
         document.getElementById('overlay').classList.add('hidden');
@@ -372,28 +569,16 @@ export class Game {
     }
 
     draw() {
-        // Clear screen with new wheat/tan pattern base color
-        this.ctx.fillStyle = '#f5deb3'; // Wheat
+        // Clear screen with dark background outside the map
+        this.ctx.fillStyle = '#222';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.ctx.save();
         this.ctx.translate(-this.cameraX, -this.cameraY);
 
-        // Draw floor tiles checkerboard
-        this.ctx.fillStyle = '#d2b48c'; // Tan
-        const tileSize = 60;
-        
-        const startX = Math.max(0, Math.floor(this.cameraX / tileSize) * tileSize);
-        const startY = Math.max(0, Math.floor(this.cameraY / tileSize) * tileSize);
-        const endX = Math.min(this.mapWidth, startX + this.canvas.width + tileSize);
-        const endY = Math.min(this.mapHeight, startY + this.canvas.height + tileSize);
-
-        for (let x = startX; x <= endX; x += tileSize) {
-            for (let y = startY; y <= endY; y += tileSize) {
-                if ((Math.floor(x / tileSize) + Math.floor(y / tileSize)) % 2 === 0) {
-                    this.ctx.fillRect(x, y, tileSize, tileSize);
-                }
-            }
+        // Draw the cached floor map
+        if (this.floorCanvas) {
+            this.ctx.drawImage(this.floorCanvas, 0, 0);
         }
 
         for (const shelf of this.shelves) {
@@ -410,11 +595,13 @@ export class Game {
 
         this.player.draw(this.ctx);
 
-        // Draw pickup radius for debug/visual clarity
+        // Draw pickup radius darker and more prominent
         this.ctx.beginPath();
         this.ctx.arc(this.player.x, this.player.y, this.player.pickupRadius, 0, Math.PI * 2);
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        this.ctx.lineWidth = 1;
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        this.ctx.fill();
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        this.ctx.lineWidth = 2;
         this.ctx.stroke();
         
         this.ctx.restore();

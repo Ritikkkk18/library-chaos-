@@ -2,9 +2,14 @@ import { Entity } from './Entity.js';
 
 export class Player extends Entity {
     constructor(x, y) {
-        super(x, y, 20); // Player radius 20
+        super(x, y, 28); // Player radius 28 for collisions
         this.walkSpeed = 250;
         this.runSpeed = 450;
+
+        // Visuals
+        this.walkAnimTimer = 0;
+        this.facingRight = false; // Sprite natively faces left
+
         this.speed = this.walkSpeed;
         this.carriedBooks = 0;
         this.maxCarryCapacity = 5;
@@ -13,6 +18,64 @@ export class Player extends Entity {
         this.stamina = 8;
         this.maxStamina = 8;
         this.staminaCooldown = 0;
+
+        // Custom Player Image
+        this.playerImage = new Image();
+        this.playerImage.src = './player.png';
+        this.processedImage = null;
+
+        this.playerImage.onload = () => {
+            this.processImageBackground();
+        };
+    }
+
+    processImageBackground() {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = this.playerImage.width;
+        tempCanvas.height = this.playerImage.height;
+        const ctx = tempCanvas.getContext('2d');
+        ctx.drawImage(this.playerImage, 0, 0);
+
+        try {
+            const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imageData.data;
+            
+            // Assume the top-left pixel is the background color
+            const bgR = data[0];
+            const bgG = data[1];
+            const bgB = data[2];
+
+            for (let y = 0; y < tempCanvas.height; y++) {
+                for (let x = 0; x < tempCanvas.width; x++) {
+                    const i = (y * tempCanvas.width + x) * 4;
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // White background color distance
+                    const distFromBg = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
+                    
+                    // Detect grey shadow at the bottom of the image
+                    // The shadow is light grey, so R, G, B are similar.
+                    const isBottomRatio = y / tempCanvas.height;
+                    const isGreyShadow = isBottomRatio > 0.8 && 
+                                         Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && 
+                                         Math.abs(r - b) < 20 && r > 100 && r < 240;
+                    
+                    // Pure white/grey under her feet (sometimes not exactly bg color)
+                    const isWhiteFloor = isBottomRatio > 0.8 && r > 240 && g > 240 && b > 240;
+
+                    if (distFromBg < 50 || isGreyShadow || isWhiteFloor) {
+                        data[i + 3] = 0; // Make transparent
+                    }
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+            this.processedImage = tempCanvas;
+        } catch (e) {
+            // Tainted canvas fallback
+            this.processedImage = this.playerImage;
+        }
     }
 
     update(dt, input, mapWidth, mapHeight, shelves) {
@@ -57,6 +120,17 @@ export class Player extends Entity {
             dy /= length;
         }
 
+        // Animation logic
+        if (isMoving && this.staminaCooldown <= 0) {
+            this.walkAnimTimer += dt * (isRunning ? 18 : 12);
+            if (dx > 0) this.facingRight = true;
+            if (dx < 0) this.facingRight = false;
+        } else {
+            // Return to resting position smoothly
+            this.walkAnimTimer += (0 - this.walkAnimTimer) * 10 * dt;
+            if (Math.abs(this.walkAnimTimer) < 0.1) this.walkAnimTimer = 0;
+        }
+
         let targetX = this.x + dx * this.speed * dt;
         let targetY = this.y + dy * this.speed * dt;
 
@@ -90,21 +164,54 @@ export class Player extends Entity {
     }
 
     draw(ctx) {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#4facfe'; // Cyan
-        ctx.fill();
-        ctx.strokeStyle = '#00f2fe';
-        ctx.lineWidth = 3;
-        ctx.stroke();
+        if (this.processedImage) {
+            // Draw custom player sprite
+            ctx.save();
+            ctx.translate(this.x, this.y);
 
-        // Draw carry indicator (small circle inside or stack)
+            // Enhanced Walking bob & wobble animation
+            const walkCycle = Math.sin(this.walkAnimTimer); // Fast cycle up and down
+            const wobbleCycle = Math.cos(this.walkAnimTimer / 2); // Slower cycle left and right (like legs shifting weight)
+            
+            const bobOffset = Math.abs(walkCycle) * 8; // Bounces up by 8 pixels max
+            // Wobble rotation to simulate steps
+            const rotOffset = wobbleCycle * 0.12; 
+
+            ctx.translate(0, -bobOffset);
+            ctx.rotate(rotOffset);
+
+            if (this.facingRight) {
+                // Flip if facing right since original sprite faces left
+                ctx.scale(-1, 1);
+            }
+
+            // Target drawing height/width to make her height visible but nicely scaled to the radius
+            const drawHeight = 120; // Nice and appropriate size
+            const drawWidth = (this.processedImage.width / this.processedImage.height) * drawHeight;
+
+            // Offset to draw centered horizontally and anchored near the bottom
+            ctx.drawImage(this.processedImage, -drawWidth / 2, -drawHeight + this.radius + 10, drawWidth, drawHeight);
+
+            ctx.restore();
+        } else {
+            // Fallback while loading
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#4facfe'; // Cyan
+            ctx.fill();
+            ctx.strokeStyle = '#00f2fe';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        // Draw carry indicator (small stack above head)
         if (this.carriedBooks > 0) {
             ctx.fillStyle = '#ffdf00'; // Yellow
-            ctx.font = '16px Inter, sans-serif';
+            ctx.font = 'bold 16px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(this.carriedBooks, this.x, this.y);
+            // Show above her head
+            ctx.fillText(`📦 ${this.carriedBooks}`, this.x, this.y - 110);
         }
     }
 }
