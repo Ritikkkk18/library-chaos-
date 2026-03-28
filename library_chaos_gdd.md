@@ -1,4 +1,4 @@
-# 📚 Library Survivors – Game Design Document
+# 📚 Library Chaos – Game Design Document
 
 ## 🎮 Core Concept
 A chaotic survival game inspired by Vampire Survivors where you play as a librarian trying to maintain order while increasingly rowdy kids create chaos by pulling books off shelves.

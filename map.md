@@ -1,11 +1,11 @@
-# 🗺️ Library Survivors - Browser Engine Plan
+# 🗺️ Library Chaos - Browser Engine Plan
 
 This map outlines the architecture specifically for a pure browser-based implementation without any 3rd-party engines (like Godot or Unity). It relies entirely on Vanilla JavaScript, HTML5 Canvas, and CSS.
 
 ```mermaid
 graph TD
     %% Main Project
-    Root["Library Survivors (Vanilla Web)"] --> Phase1["Phase 1: Engine Foundation"]
+    Root["Library Chaos (Vanilla Web)"] --> Phase1["Phase 1: Engine Foundation"]
     Root --> Phase2["Phase 2: Core Mechanics"]
     Root --> Phase3["Phase 3: Entity AI"]
     Root --> Phase4["Phase 4: Progression & Loop"]
